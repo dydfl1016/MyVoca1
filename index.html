@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeEnglish 단어 암기 앱</title>
+<style>
+  * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#dff3f1; color:#111; }
+  .app { max-width:520px; min-height:100vh; margin:0 auto; padding:18px 18px 28px; }
+  .top { display:flex; align-items:center; justify-content:space-between; margin:6px 0 14px; }
+  .circle { width:46px; height:46px; border:none; border-radius:50%; background:#fff; font-size:28px; font-weight:800; display:grid; place-items:center; }
+  .title { font-size:23px; font-weight:900; }
+  .dayTabs { display:flex; gap:8px; margin:0 0 14px; overflow-x:auto; padding-bottom:4px; }
+  .dayTabs button { border:none; border-radius:999px; padding:10px 18px; background:white; font-weight:900; color:#128d83; box-shadow:0 2px 6px rgba(0,0,0,.08); }
+  .dayTabs button.active { background:#10bfb3; color:white; }
+  .progressRow { display:flex; align-items:center; gap:12px; margin-bottom:28px; }
+  .bar { flex:1; height:8px; background:#c7e4e1; border-radius:99px; overflow:hidden; }
+  .fill { height:100%; width:0%; background:#10bfb3; border-radius:99px; transition:.25s; }
+  .count { color:#09988d; font-size:20px; font-weight:900; min-width:46px; text-align:right; }
+  .card { background:#fff; border-radius:30px; min-height:600px; padding:26px 22px 28px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; box-shadow:0 2px 10px rgba(0,0,0,.03); }
+  .bell { align-self:flex-end; font-size:28px; color:#777; }
+  .wordArea { text-align:center; width:100%; margin-top:40px; }
+  .word { font-size:48px; line-height:1.05; font-weight:950; letter-spacing:-1.5px; }
+  .blank { width:170px; height:54px; border:4px solid #111; border-radius:14px; margin:20px auto 12px; background:#f7f7f7; }
+  .phonetic { color:#999; font-size:20px; margin-top:12px; min-height:28px; }
+  .pos { color:#ff5b77; font-size:22px; font-weight:900; margin-top:12px; min-height:30px; }
+  .meaning { font-size:28px; font-weight:950; margin-top:8px; min-height:40px; }
+  .speaker { border:none; background:transparent; color:#10bfb3; font-size:48px; margin-top:18px; cursor:pointer; }
+  .pic { max-width:230px; max-height:190px; object-fit:contain; margin:50px auto 0; display:block; }
+  .hintBox { display:none; width:100%; border:2px solid #55d681; border-radius:22px; padding:18px; margin-top:18px; color:#333; font-size:17px; line-height:1.55; }
+  .card.show .blank { display:none; }
+  .card:not(.show) .phonetic, .card:not(.show) .pos, .card:not(.show) .meaning { visibility:hidden; }
+  .bottom { display:grid; grid-template-columns:86px 1fr 86px; gap:12px; margin-top:26px; }
+  .navBtn { height:76px; border:none; border-radius:24px; background:#fff; font-size:38px; font-weight:900; }
+  .navBtn:disabled { opacity:.35; }
+  .toggle { height:76px; border:none; border-radius:24px; background:#10bfb3; color:white; font-size:24px; font-weight:950; }
+  .finish { display:none; background:white; border-radius:30px; padding:30px; text-align:center; margin-top:20px; }
+  .finish h2 { font-size:30px; }
+  .finish button { border:none; border-radius:20px; padding:15px 22px; background:#10bfb3; color:#fff; font-size:20px; font-weight:900; }
+  @media (max-width:390px) { .word {font-size:40px} .card {min-height:560px} .pic {max-width:200px} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <button class="circle" onclick="resetDay()">×</button>
+    <div class="title">단어 암기</div>
+    <button class="circle" onclick="toggleKoreanFirst()">⚙</button>
+  </div>
+  <div class="dayTabs" id="dayTabs"></div>
+  <div class="progressRow"><div class="bar"><div class="fill" id="fill"></div></div><div class="count" id="count">0 / 20</div></div>
+
+  <div class="card" id="card">
+    <div class="bell">♧</div>
+    <div class="wordArea">
+      <div class="word" id="word">word</div>
+      <div class="blank" id="blank"></div>
+      <div class="phonetic" id="phonetic"></div>
+      <div class="pos" id="pos"></div>
+      <div class="meaning" id="meaning"></div>
+      <button class="speaker" onclick="speakWord()">🔊</button>
+    </div>
+    <img class="pic" id="pic" alt="word picture" />
+  </div>
+
+  <div class="bottom">
+    <button class="navBtn" id="prevBtn" onclick="prevCard()">←</button>
+    <button class="toggle" id="toggleBtn" onclick="toggleMeaning()">뜻 보기</button>
+    <button class="navBtn" id="nextBtn" onclick="nextCard()">→</button>
+  </div>
+
+  <div class="finish" id="finish">
+    <h2>🎉 DAY 완료!</h2>
+    <p>오늘 단어를 끝까지 확인했어요.</p>
+    <button onclick="resetDay()">다시 연습하기</button>
+  </div>
+</div>
+<script>
+const DATA = {"1": [{"word": "backpack", "meaning": "배낭", "pos": "명사", "phonetic": "", "img": "assets/day1_01.jpg"}, {"word": "notebook", "meaning": "공책", "pos": "명사", "phonetic": "", "img": "assets/day1_02.jpg"}, {"word": "pencil", "meaning": "연필", "pos": "명사", "phonetic": "", "img": "assets/day1_03.jpg"}, {"word": "eraser", "meaning": "지우개", "pos": "명사", "phonetic": "", "img": "assets/day1_04.jpg"}, {"word": "pencil case", "meaning": "필통", "pos": "명사", "phonetic": "", "img": "assets/day1_05.jpg"}, {"word": "book", "meaning": "책", "pos": "명사", "phonetic": "", "img": "assets/day1_06.jpg"}, {"word": "ruler", "meaning": "자", "pos": "명사", "phonetic": "", "img": "assets/day1_07.jpg"}, {"word": "scissors", "meaning": "가위", "pos": "명사", "phonetic": "", "img": "assets/day1_08.jpg"}, {"word": "glue", "meaning": "풀", "pos": "명사", "phonetic": "", "img": "assets/day1_09.jpg"}, {"word": "desk", "meaning": "책상", "pos": "명사", "phonetic": "", "img": "assets/day1_10.jpg"}, {"word": "chair", "meaning": "의자", "pos": "명사", "phonetic": "", "img": "assets/day1_11.jpg"}, {"word": "window", "meaning": "창문", "pos": "명사", "phonetic": "", "img": "assets/day1_12.jpg"}, {"word": "door", "meaning": "문", "pos": "명사", "phonetic": "", "img": "assets/day1_13.jpg"}, {"word": "clock", "meaning": "시계", "pos": "명사", "phonetic": "", "img": "assets/day1_14.jpg"}, {"word": "calendar", "meaning": "달력", "pos": "명사", "phonetic": "", "img": "assets/day1_15.jpg"}, {"word": "water", "meaning": "물", "pos": "명사", "phonetic": "", "img": "assets/day1_16.jpg"}, {"word": "lunch", "meaning": "점심", "pos": "명사", "phonetic": "", "img": "assets/day1_17.jpg"}, {"word": "ball", "meaning": "공", "pos": "명사", "phonetic": "", "img": "assets/day1_18.jpg"}, {"word": "bike", "meaning": "자전거", "pos": "명사", "phonetic": "", "img": "assets/day1_19.jpg"}, {"word": "tree", "meaning": "나무", "pos": "명사", "phonetic": "", "img": "assets/day1_20.jpg"}],"2": [{"word": "pencil case", "meaning": "필통", "pos": "명사", "phonetic": "", "img": "assets/day2_01.jpg"}, {"word": "apple", "meaning": "사과", "pos": "명사", "phonetic": "", "img": "assets/day2_02.jpg"}, {"word": "chair", "meaning": "의자", "pos": "명사", "phonetic": "", "img": "assets/day2_03.jpg"}, {"word": "door", "meaning": "문", "pos": "명사", "phonetic": "", "img": "assets/day2_04.jpg"}, {"word": "ball", "meaning": "공", "pos": "명사", "phonetic": "", "img": "assets/day2_05.jpg"}, {"word": "notebook", "meaning": "공책", "pos": "명사", "phonetic": "", "img": "assets/day2_06.jpg"}, {"word": "eraser", "meaning": "지우개", "pos": "명사", "phonetic": "", "img": "assets/day2_07.jpg"}, {"word": "desk", "meaning": "책상", "pos": "명사", "phonetic": "", "img": "assets/day2_08.jpg"}, {"word": "tree", "meaning": "나무", "pos": "명사", "phonetic": "", "img": "assets/day2_09.jpg"}, {"word": "clock", "meaning": "시계", "pos": "명사", "phonetic": "", "img": "assets/day2_10.jpg"}, {"word": "glue", "meaning": "풀", "pos": "명사", "phonetic": "", "img": "assets/day2_11.jpg"}, {"word": "backpack", "meaning": "배낭", "pos": "명사", "phonetic": "", "img": "assets/day2_12.jpg"}, {"word": "pencil", "meaning": "연필", "pos": "명사", "phonetic": "", "img": "assets/day2_13.jpg"}, {"word": "water", "meaning": "물", "pos": "명사", "phonetic": "", "img": "assets/day2_14.jpg"}, {"word": "window", "meaning": "창문", "pos": "명사", "phonetic": "", "img": "assets/day2_15.jpg"}, {"word": "lunch", "meaning": "점심", "pos": "명사", "phonetic": "", "img": "assets/day2_16.jpg"}, {"word": "bike", "meaning": "자전거", "pos": "명사", "phonetic": "", "img": "assets/day2_17.jpg"}, {"word": "book", "meaning": "책", "pos": "명사", "phonetic": "", "img": "assets/day2_18.jpg"}, {"word": "calendar", "meaning": "달력", "pos": "명사", "phonetic": "", "img": "assets/day2_19.jpg"}, {"word": "ruler", "meaning": "자", "pos": "명사", "phonetic": "", "img": "assets/day2_20.jpg"}],"3": [{"word": "water", "meaning": "물", "pos": "명사", "phonetic": "", "img": "assets/day3_01.jpg"}, {"word": "backpack", "meaning": "배낭", "pos": "명사", "phonetic": "", "img": "assets/day3_02.jpg"}, {"word": "calendar", "meaning": "달력", "pos": "명사", "phonetic": "", "img": "assets/day3_03.jpg"}, {"word": "pencil case", "meaning": "필통", "pos": "명사", "phonetic": "", "img": "assets/day3_04.jpg"}, {"word": "chair", "meaning": "의자", "pos": "명사", "phonetic": "", "img": "assets/day3_05.jpg"}, {"word": "book", "meaning": "책", "pos": "명사", "phonetic": "", "img": "assets/day3_06.jpg"}, {"word": "window", "meaning": "창문", "pos": "명사", "phonetic": "", "img": "assets/day3_07.jpg"}, {"word": "pencil", "meaning": "연필", "pos": "명사", "phonetic": "", "img": "assets/day3_08.jpg"}, {"word": "ball", "meaning": "공", "pos": "명사", "phonetic": "", "img": "assets/day3_09.jpg"}, {"word": "clock", "meaning": "시계", "pos": "명사", "phonetic": "", "img": "assets/day3_10.jpg"}, {"word": "eraser", "meaning": "지우개", "pos": "명사", "phonetic": "", "img": "assets/day3_11.jpg"}, {"word": "tree", "meaning": "나무", "pos": "명사", "phonetic": "", "img": "assets/day3_12.jpg"}, {"word": "lunch", "meaning": "점심", "pos": "명사", "phonetic": "", "img": "assets/day3_13.jpg"}, {"word": "desk", "meaning": "책상", "pos": "명사", "phonetic": "", "img": "assets/day3_14.jpg"}, {"word": "glue", "meaning": "풀", "pos": "명사", "phonetic": "", "img": "assets/day3_15.jpg"}, {"word": "door", "meaning": "문", "pos": "명사", "phonetic": "", "img": "assets/day3_16.jpg"}, {"word": "notebook", "meaning": "공책", "pos": "명사", "phonetic": "", "img": "assets/day3_17.jpg"}, {"word": "apple", "meaning": "사과", "pos": "명사", "phonetic": "", "img": "assets/day3_18.jpg"}, {"word": "bike", "meaning": "자전거", "pos": "명사", "phonetic": "", "img": "assets/day3_19.jpg"}, {"word": "ruler", "meaning": "자", "pos": "명사", "phonetic": "", "img": "assets/day3_20.jpg"}]};
+const phonetics = {
+  backpack:'/ˈbækpæk/', notebook:'/ˈnoʊtbʊk/', pencil:'/ˈpensəl/', eraser:'/ɪˈreɪsər/', 'pencil case':'/ˈpensəl keɪs/',
+  book:'/bʊk/', ruler:'/ˈruːlər/', scissors:'/ˈsɪzərz/', glue:'/ɡluː/', desk:'/desk/', chair:'/tʃer/', window:'/ˈwɪndoʊ/', door:'/dɔːr/', clock:'/klɑːk/', calendar:'/ˈkælɪndər/', water:'/ˈwɔːtər/', lunch:'/lʌntʃ/', ball:'/bɔːl/', bike:'/baɪk/', tree:'/triː/', apple:'/ˈæpəl/'
+};
+let day=1, index=0, shown=false, koreanFirst=false;
+const dayTabs=document.getElementById('dayTabs');
+[1,2,3].forEach(d=>{ const b=document.createElement('button'); b.textContent='DAY '+d; b.onclick=()=>loadDay(d); b.id='tab'+d; dayTabs.appendChild(b); });
+function loadDay(d){ day=d; index=0; shown=false; document.querySelectorAll('.dayTabs button').forEach(b=>b.classList.remove('active')); document.getElementById('tab'+d).classList.add('active'); render(); }
+function current(){ return DATA[String(day)][index]; }
+function render(){
+  const item=current(), total=DATA[String(day)].length;
+  document.getElementById('card').classList.toggle('show', shown);
+  document.getElementById('word').textContent = koreanFirst && !shown ? item.meaning : item.word;
+  document.getElementById('phonetic').textContent = phonetics[item.word] || '';
+  document.getElementById('pos').textContent = item.pos || '명사';
+  document.getElementById('meaning').textContent = item.meaning;
+  document.getElementById('pic').src = item.img;
+  document.getElementById('toggleBtn').textContent = shown ? '뜻 가리기' : '뜻 보기';
+  document.getElementById('prevBtn').disabled = index===0;
+  document.getElementById('nextBtn').disabled = index===total-1;
+  document.getElementById('count').textContent = index+' / '+total;
+  document.getElementById('fill').style.width = (index/total*100)+'%';
+  document.getElementById('finish').style.display = index===total-1 && shown ? 'block' : 'none';
+}
+function toggleMeaning(){ shown=!shown; render(); }
+function nextCard(){ if(index<DATA[String(day)].length-1){ index++; shown=false; render(); speakWord(); } }
+function prevCard(){ if(index>0){ index--; shown=false; render(); } }
+function resetDay(){ index=0; shown=false; render(); }
+function toggleKoreanFirst(){ koreanFirst=!koreanFirst; alert(koreanFirst?'한글 먼저 보기 모드입니다.':'영어 먼저 보기 모드입니다.'); render(); }
+function speakWord(){
+  const u=new SpeechSynthesisUtterance(current().word); u.lang='en-US'; u.rate=.75; speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+loadDay(1);
+</script>
+</body>
+</html>
